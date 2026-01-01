@@ -1,0 +1,61 @@
+pipeline {
+    agent { label 'gcp-agent' }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/skyberad/gcp-new.git'
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+                    sh '''
+                    export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                    terraform --version
+                    terraform init
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                sh 'terraform validate'
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+                    sh '''
+                    export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                    terraform plan -out=tfplan
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+                    sh '''
+                    export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                    terraform apply -auto-approve tfplan
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Terraform Deployment Successful 🎉"
+        }
+        failure {
+            echo "Pipeline Failed ❌"
+        }
+    }
+}
