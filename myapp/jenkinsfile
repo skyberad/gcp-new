@@ -1,0 +1,51 @@
+pipeline {
+    agent { label 'gcp-agent' } 
+
+    environment {
+        IMAGE_NAME = "myapp"                     
+        IMAGE_TAG  = "latest"                    
+        GCP_PROJECT = "tribal-archery-476610-s8"    
+        GCR_REGION = "us"             
+        GCR_IMAGE = "${GCR_REGION}.gcr.io/${GCP_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/skyberad/gcp-new.git'
+            }
+        }
+
+   stage('Build Docker Image') {
+    steps {
+        script {
+            docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "./myapp")
+                }
+            }
+        }
+
+        stage('Push to GCR') {
+            steps {
+                withCredentials([file(credentialsId: 'gcr-sa-key', variable: 'GCP_KEY')]) {
+                    script {
+                        sh "gcloud auth activate-service-account --key-file=${GCP_KEY}"
+                        sh "gcloud auth configure-docker --quiet"
+                        sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${GCR_IMAGE}"
+                        sh "docker push ${GCR_IMAGE}"
+                    }
+                }
+            }
+        }
+    }
+}
+
+   post {
+        success {
+            echo "CI pipeline succeeded. Triggering CD pipeline..."
+            build job: 'cd', wait: false
+        }
+        failure {
+            echo "CI pipeline failed. CD pipeline will NOT run."
+        }
+    }
+}
