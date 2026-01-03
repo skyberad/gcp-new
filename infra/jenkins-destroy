@@ -1,18 +1,28 @@
-stage('Terraform Destroy') {
-    when {
-        expression {
-            return params.ACTION == 'destroy'
-        }
-    }
-    steps {
-        input message: '⚠️ Confirm Terraform DESTROY? This will delete ALL infra!'
+pipeline {
+    agent { label 'agent-s' }
 
-        dir('infra') {
-            withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
-                sh '''
-                export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
-                terraform destroy -auto-approve
-                '''
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: ['destroy'],
+            description: 'Terraform destroy only'
+        )
+    }
+
+    stages {
+        stage('Terraform Destroy') {
+            steps {
+                input message: '⚠️ Confirm Terraform DESTROY? This will delete ALL infra'
+
+                dir('infra') {
+                    withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+                        sh '''
+                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                        terraform init
+                        terraform destroy -auto-approve
+                        '''
+                    }
+                }
             }
         }
     }
