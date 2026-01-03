@@ -2,6 +2,7 @@ pipeline {
     agent { label 'agent-s' }
 
     stages {
+
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
@@ -11,40 +12,49 @@ pipeline {
 
         stage('Terraform Init') {
             steps {
-                withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
-                    sh '''
-                    export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
-                    terraform --version
-                    terraform init
-                    '''
+                dir('infra') {
+                    withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+                        sh '''
+                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                        terraform --version
+                        terraform init
+                        '''
+                    }
                 }
             }
         }
 
         stage('Terraform Validate') {
             steps {
-                sh 'terraform validate'
+                dir('infra') {
+                    sh 'terraform validate'
+                }
             }
         }
 
         stage('Terraform Plan') {
             steps {
-                withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
-                    sh '''
-                    export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
-                    terraform plan -out=tfplan
-                    '''
+                dir('infra') {
+                    withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+                        sh '''
+                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                        terraform plan -out=tfplan
+                        '''
+                    }
                 }
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
-                    sh '''
-                    export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
-                    terraform apply -auto-approve tfplan
-                    '''
+                dir('infra') {
+                    withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+                        input message: 'Approve Terraform Apply?'
+                        sh '''
+                        export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+                        terraform apply -auto-approve tfplan
+                        '''
+                    }
                 }
             }
         }
@@ -56,6 +66,3 @@ pipeline {
         }
         failure {
             echo "Pipeline Failed ❌"
-        }
-    }
-}
