@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'gcp-agent' } 
+    agent { label 'agent-s' } 
 
     environment {
         IMAGE_NAME = "myapp"                     
