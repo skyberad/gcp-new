@@ -47,9 +47,10 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
+                input message: 'Approve Terraform Apply?'
+
                 dir('infra') {
                     withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
-                        input message: 'Approve Terraform Apply?'
                         sh '''
                         export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
                         terraform apply -auto-approve tfplan
@@ -66,3 +67,6 @@ pipeline {
         }
         failure {
             echo "Pipeline Failed ❌"
+        }
+    }
+}
